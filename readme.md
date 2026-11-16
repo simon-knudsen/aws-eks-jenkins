@@ -2,7 +2,7 @@
 
 **A pipeline that takes a Java application from a Git commit to running pods on managed Kubernetes in about 30 seconds, with no manual steps. I built it in four iterations across AWS and Linode.**
 
-## The problem this solves
+## Why I built it: the problem this solves
 
 Many teams still deploy by hand. Someone builds the app, picks an image tag, runs `kubectl` from their own laptop and hopes nothing was missed. This is slow, it depends on the one person who knows the steps, and when something breaks in production nobody can say for sure which build is running. These four projects replace that process with an automated, traceable pipeline. Each project tackles one part of the problem, and each was a choice between alternatives with real trade-offs.
 
@@ -52,7 +52,7 @@ The `master` branch contains the starter application. The pipeline code for each
 
 > **Scenario:** A team already builds Docker images in Jenkins, but deploys by hand. One engineer runs `kubectl` from their own laptop using their personal AWS access. Releases wait for that person, and nobody can check what was run.
 
-## The business challenge
+## Why I built it: the business challenge
 
 When deployments depend on one person's laptop, that person becomes a bottleneck and a single point of failure. There is also no audit trail of what was deployed. The goal was to let the pipeline deploy to a managed Kubernetes cluster without spreading cluster admin access to more people.
 
@@ -116,7 +116,7 @@ _Pipeline logs showing the deployment created on the EKS cluster._
 
 > **Scenario:** Leadership is worried about rising AWS costs and about being locked into one vendor. Before committing further, they want to know whether the deployment process would still work on a cheaper Kubernetes provider.
 
-## The business challenge
+## Why I built it: the business challenge
 
 If a deployment process only works on one cloud provider, the business has little bargaining power and expensive moves later on. The question here was whether the pipeline could deploy to a different provider's managed Kubernetes without being rebuilt.
 
@@ -181,7 +181,7 @@ _The nginx deployment pod is running on the LKE cluster._
 
 > **Scenario:** Every release involves bumping the version number by hand, choosing an image tag and editing the deployment files. Tags get reused, the version in Git drifts away from what is actually deployed, and when a bug shows up nobody can say which build is in production.
 
-## The business challenge
+## Why I built it: the business challenge
 
 Without versioning and traceability, rolling back is guesswork and fixing problems takes longer. The goal was a pipeline where **one commit produces one uniquely identified release** that is built, deployed and recorded with no manual steps.
 
@@ -258,7 +258,7 @@ _The deployed pod uses the newly built image `simonknudsen7/demo-app:1.1.12-12` 
 
 > **Scenario:** A security review flags that production images are stored with an outside provider (Docker Hub), under credentials that AWS IAM doesn't control. The team is asked to keep images inside the AWS account, close to the cluster.
 
-## The business challenge
+## Why I built it: the business challenge
 
 The registry sits on the path to production. If it is outside the cloud account, it brings separate credentials, separate access policies and another outside dependency that can fail. The goal was to move the registry into AWS **without rebuilding the pipeline**.
 
