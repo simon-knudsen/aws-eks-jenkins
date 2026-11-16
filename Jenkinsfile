@@ -37,7 +37,7 @@ pipeline {
                     echo "building the docker image..."
 
                     withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
+                        credentialsId: 'docker-hub-repo',
                         passwordVariable: 'PASS',
                         usernameVariable: 'USER'
                     )]) {
