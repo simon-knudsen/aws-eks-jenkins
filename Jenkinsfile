@@ -35,10 +35,17 @@ pipeline {
             steps {
                 script {
                     echo "building the docker image..."
-                    withCredentials([usernamePassword(credentialsId: 'ecr-credentials', passwordVariable: 'PASS', usernameVariable: 'USER')]){
-                        sh "docker build -t simonknudsen7/demo-app:${IMAGE_NAME} ."
-                        sh 'echo $PASS | docker login -u $USER --password-stdin ${DOCKER_REPO_SERVER}'
-                        sh "docker push simonknudsen7/demo-app:${IMAGE_NAME}"
+
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        passwordVariable: 'PASS',
+                        usernameVariable: 'USER'
+                    )]) {
+                        sh "docker build -t ${DOCKER_REPO}:${IMAGE_NAME} ."
+
+                        sh 'echo $PASS | docker login -u $USER --password-stdin docker.io'
+
+                        sh "docker push ${DOCKER_REPO}:${IMAGE_NAME}"
                     }
                 }
             }
@@ -60,7 +67,7 @@ pipeline {
         stage('commit version update'){
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'gitlab-credentials', passwordVariable: 'PASS', usernameVariable: 'USER')]){
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'PASS', usernameVariable: 'USER')]){
                         sh "git remote set-url origin https://${USER}:${PASS}@github.com/simon-knudsen/aws-eks-jenkins.git"
                         sh 'git add .'
                         sh 'git commit -m "ci: version bump"'
