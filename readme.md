@@ -12,7 +12,7 @@ Many teams still deploy by hand. Someone builds the app, picks an image tag, run
 - **No manual steps.** Every release is built, packaged, deployed and versioned by the pipeline.
 - **Every running pod traces back to its build.** Image tags such as `1.1.13-14` combine the app version with the Jenkins build number.
 - **Two cloud providers.** The same deploy pattern was proven on AWS EKS and Linode LKE.
-- **Changing registry meant changing configuration, not rewriting the pipeline.** Moving from Docker Hub to AWS ECR took two environment variables and a new pull secret.
+- **Changing registry meant changing configuration, not rewriting the pipeline.** Moving from Docker Hub to AWS ECR meant updating the registry variables, credentials and pull secret, while the pipeline stages stayed the same.
 - **No secrets in the code.** AWS keys, registry logins, the kubeconfig and the Git token all live in the Jenkins credentials store.
 
 ## Skills at a glance
@@ -84,15 +84,21 @@ This project extends an existing Jenkins CI/CD pipeline so that the application 
 - Deployments now run from the pipeline, not from someone's laptop, and every one is logged in Jenkins.
 - AWS credentials are injected only into the `deploy` stage, never written into the Jenkinsfile.
 
+## Challenges I hit
+
+- **Making sense of Jenkins pipeline logs.** At first the console output was hard to read. Jenkins writes its own messages, shell commands, kubectl output and AWS errors into one long log, so the real error was often buried. I learned to go straight to the stage that failed and find the lines starting with `+`, which show the exact shell command Jenkins ran with the variables filled in. The error usually comes right after. Credentials appear as `****`, which also confirmed they were being injected correctly.
+
 ## What I learned
 
-> ✍️ **TODO:** What did you learn from this project?
-<!-- Prompts: What surprised you about how EKS authenticates users (IAM → kubeconfig)? What went wrong when you first ran kubectl from Jenkins? -->
+- **Cluster access is an IAM question.** On EKS, the kubeconfig hands authentication to `aws-iam-authenticator`, which turns AWS credentials into a Kubernetes token. Who can deploy is decided in IAM, not in the cluster alone.
+- **The CI server is infrastructure too.** Every tool a pipeline needs (kubectl, authenticators, CLIs) has to exist on the Jenkins agent, and someone has to install, update and secure it.
+- **Limit secrets to the stage that needs them.** Putting credentials in a stage's `environment` block means they exist only while that stage runs, not for the whole pipeline.
 
 ## What I'd do differently
 
-> ✍️ **TODO:** What would you change if you built it again?
-<!-- Prompts: installing tools by hand on the server vs. using a plugin or container agent (what you did in project 2); static keys vs. IAM roles. -->
+- **Run deploy tools in a container agent** instead of installing them on the Jenkins server, so the tool versions are pinned and recorded in code.
+- **Use an IAM role for Jenkins** instead of long-lived access keys, so there are no static secrets to rotate or leak.
+- **Give Jenkins least-privilege access in the cluster.** Use a dedicated Kubernetes role that can only deploy to its own namespace, not cluster-admin.
 
 ## Screenshots
 
@@ -142,13 +148,15 @@ This project extends the Jenkins CI/CD pipeline so that the application is deplo
 
 ## What I learned
 
-> ✍️ **TODO:** What did you learn from this project?
-<!-- Prompts: How did the plugin approach compare to what you did by hand in project 1? What actually differs between managed Kubernetes providers? -->
+- **Managed Kubernetes providers differ mostly around the edges.** Workloads and `kubectl` commands are the same everywhere. What changes is authentication, networking and how each provider integrates with its other services.
+- **Plugins make setup simpler but add something to maintain.** `withKubeConfig` removed the manual server setup from project 1, but it is one more plugin to keep updated and compatible.
+- **Portability has to be protected on purpose.** It only lasts if the pipeline avoids provider-specific shortcuts.
 
 ## What I'd do differently
 
-> ✍️ **TODO:** What would you change if you built it again?
-<!-- Prompts: Deploying the real app instead of nginx? Keeping the cluster URL out of the Jenkinsfile? -->
+- **Deploy the real application, not nginx,** to prove the whole flow (private registry, manifests, Service) works on the second provider too.
+- **Keep the cluster URL and credential IDs out of the Jenkinsfile** and in Jenkins configuration or pipeline parameters, so the same pipeline can target any cluster.
+- **Use one deploy approach for both clusters.** A single parameterised pipeline that can target EKS or LKE would make the portability claim concrete.
 
 ## Screenshots
 
@@ -209,15 +217,23 @@ Without versioning and traceability, rolling back is guesswork and fixing proble
 - Every pod links to its build: `kubectl describe pod` shows the exact image tag.
 - Version bumps are automatic and the code and the deployed version always match. Nobody tracks releases by hand.
 
+## Challenges I hit
+
+- **Giving Jenkins access to push the version bump to GitHub.** This was the hardest step to get working. Jenkins needed a GitHub personal access token with write access to the repository, stored as a Jenkins credential and used in the Git remote URL. It also needed a Git user name and email set before it could commit at all. And because Jenkins checks out a specific commit rather than a branch, the push has to name the branch explicitly (`git push origin HEAD:jenkins-jobs`).
+- **Environment variables across Groovy, the shell and `envsubst`.** The image name is worked out in Groovy (`env.IMAGE_NAME`), used in shell commands, and finally written into the Kubernetes manifests by `envsubst`. Each layer handles variables differently. In a Jenkinsfile, Groovy fills in variables inside double quotes, while single-quoted commands go to the shell unchanged. `envsubst` only sees variables that are exported to the environment. Getting a value to arrive correctly in the deployed manifest meant understanding all three layers.
+
 ## What I learned
 
-> ✍️ **TODO:** What did you learn from this project?
-<!-- Prompts: The commit history on jenkins-jobs has many back-to-back "ci: version bump" commits and an "update errors" fix. What did getting versioning and commit-back working teach you? -->
+- **Traceability is what makes automation trustworthy.** A fast pipeline isn't enough. You need to know exactly which build is running in order to debug or roll back with confidence.
+- **A pipeline that writes to Git needs guardrails.** Committing the version bump back creates a risk of build loops, and it needs a credential that can write to the repository, which has to be protected.
+- **Simple tools are a valid starting point.** `envsubst` solved the templating problem with nothing extra to install, but it helps to know its limits (no release history, no rollback) before relying on it.
 
 ## What I'd do differently
 
-> ✍️ **TODO:** What would you change if you built it again?
-<!-- Prompts: Helm vs envsubst? How to prevent the version-bump build loop? Would you tag images with the Git commit SHA as well? -->
+- **Ignore the pipeline's own version-bump commits from day one,** so they never trigger a new build.
+- **Use Helm once rollback matters,** to get release history and one-command rollbacks instead of redeploying old tags by hand.
+- **Make the Deployment production-ready** by adding readiness and liveness probes and CPU/memory requests and limits, so Kubernetes can detect unhealthy pods and schedule them sensibly.
+- **Also label images with the Git commit SHA,** so each image links directly to the exact source code as well as the build.
 
 ## Screenshots
 
@@ -276,15 +292,28 @@ The registry sits on the path to production. If it is outside the cloud account,
 - The registry was replaced with **no changes to the pipeline stages**, which shows the earlier design decisions paid off.
 - Same results as project 3: about 30 seconds from commit to running pods, and every pod traces back to its build (`java-maven-app:1.1.13-14`).
 
+## Challenges I hit
+
+- **Switching from Docker Hub to ECR.** The pipeline stages stayed the same, but the switch touched more than it first seemed:
+  - ECR image names must include the full registry address (`<account>.dkr.ecr.<region>.amazonaws.com/java-maven-app`).
+  - `docker login` has to target that registry instead of Docker Hub.
+  - Jenkins needed new registry credentials.
+  - The cluster needed a new pull secret (`aws-registry-key`).
+
+  If any one of these is wrong, either the image push or the pod start fails, so I had to check each one in turn.
+
 ## What I learned
 
-> ✍️ **TODO:** What did you learn from this project?
-<!-- Prompts: What did moving the registry show you about the value of keeping configuration out of the pipeline code? Anything surprising about ECR authentication? -->
+- **Putting settings in variables early pays off later.** Because project 3 kept the registry in environment variables, switching registry was a configuration change, not a rewrite.
+- **Registry logins work differently from cloud to cloud.** ECR uses short-lived tokens tied to IAM, unlike Docker Hub's username and password, and that affects how the pipeline should log in.
+- **Every infrastructure choice trades portability against integration.** Neither is right in general. It depends on what the business is optimising for.
 
 ## What I'd do differently
 
-> ✍️ **TODO:** What would you change if you built it again?
-<!-- Prompts: Static ECR credentials vs. aws ecr get-login-password? Would you choose ECR from the start? -->
+- **Generate ECR logins at build time** with `aws ecr get-login-password` instead of storing a credential in Jenkins.
+- **Let EKS pull images through the node IAM role.** On EKS, worker nodes can pull from ECR using their own IAM permissions, which removes the need for an `imagePullSecrets` secret.
+- **Turn on ECR image scanning and lifecycle policies** to catch known vulnerabilities on push and to clean up old images automatically.
+- **Create the ECR repository with Terraform,** so the registry is version-controlled alongside the rest of the infrastructure.
 
 ## Screenshots
 
