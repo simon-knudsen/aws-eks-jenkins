@@ -7,7 +7,7 @@ pipeline {
     }
     environment {
         DOCKER_REPO_SERVER = 'docker.io'
-        "${DOCKER_REPO_SERVER}/simonknudsen7/demo-app"
+        DOCKER_REPO = "${DOCKER_REPO_SERVER}/simonknudsen7/demo-app"
     }
     stages {
         stage('increment version') {
