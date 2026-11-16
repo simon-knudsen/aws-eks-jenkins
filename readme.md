@@ -53,3 +53,39 @@ _All pipeline stages completed successfully, including the deploy to LKE._
 
 ![kubectl get pod output](images/lke-pod-result.png)
 _The nginx deployment pod is running on the LKE cluster._
+
+<br>
+
+# Complete CI/CD Pipeline with EKS and private DockerHub registry
+
+![Project overview](images/Overview.png)
+
+## Technologies used
+
+Kubernetes, Jenkins, AWS EKS, Docker Hub, Java, Maven, Linux, Docker, Git
+
+## Project Description
+
+- Wrote K8s manifest files for the Deployment and Service configuration
+- Integrated a deploy step in the CI/CD pipeline that deploys the newly built application image from the private DockerHub registry to the EKS cluster
+- The complete CI/CD pipeline has the following configuration:
+  1. CI step: Increment version
+  2. CI step: Build artifact for Java Maven application
+  3. CI step: Build and push Docker image to DockerHub
+  4. CD step: Deploy new application version to EKS cluster
+  5. CD step: Commit the version update
+
+## Screenshots
+
+![Jenkins pipeline stage view](images/complete-deployment-pipeline.png)
+_All pipeline stages completed successfully: increment version, build app, build image, deploy and commit version update._
+
+<br>
+
+![kubectl get pod output](images/jave-maven%20pods%20running.png)
+_The java-maven-app pods created on the EKS cluster by the deploy stage._
+
+<br>
+
+![kubectl describe pod output](images/image-build%20name.png)
+_The deployed pod uses the newly built image `simonknudsen7/demo-app:1.1.12-12` from the private DockerHub registry._
