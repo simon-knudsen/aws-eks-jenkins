@@ -89,3 +89,45 @@ _The java-maven-app pods created on the EKS cluster by the deploy stage._
 
 ![kubectl describe pod output](images/image-build%20name.png)
 _The deployed pod uses the newly built image `simonknudsen7/demo-app:1.1.12-12` from the private DockerHub registry._
+
+<br>
+
+# Complete CI/CD Pipeline with EKS and AWS ECR
+
+![Project overview](images/ecr-pipeline.png)
+
+## Technologies used
+
+Kubernetes, Jenkins, AWS EKS, AWS ECR, Java, Maven, Linux, Docker, Git
+
+## Project Description
+
+- Created a private AWS ECR Docker repository
+- Adjusted the Jenkinsfile to build and push the Docker image to AWS ECR
+- Integrated deploying to the K8s cluster in the CI/CD pipeline from the AWS ECR private registry
+- The complete CI/CD pipeline has the following configuration:
+  1. CI step: Increment version
+  2. CI step: Build artifact for Java Maven application
+  3. CI step: Build and push Docker image to AWS ECR
+  4. CD step: Deploy new application version to EKS cluster
+  5. CD step: Commit the version update
+
+## Screenshots
+
+![Jenkins pipeline stage view](images/pipeline-success.png)
+_All pipeline stages completed successfully: increment version, build app, build image, deploy and commit version update._
+
+<br>
+
+![AWS ECR repository images](images/aws-ecr-image.png)
+_The newly built image `1.1.13-14` pushed to the private `java-maven-app` repository in AWS ECR._
+
+<br>
+
+![kubectl get pod output](images/pods-created.png)
+_The java-maven-app pods created on the EKS cluster by the deploy stage._
+
+<br>
+
+![kubectl describe pod output](images/image%20url%20from%20ecr.png)
+_The deployed pod is configured with the newly built image `java-maven-app:1.1.13-14` from the private AWS ECR registry._
