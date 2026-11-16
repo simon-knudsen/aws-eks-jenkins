@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       labels:
-        app: $APP_NAMEp
+        app: $APP_NAME
     spec:
       imagePullSecrets:
         - name: my-registry-key
